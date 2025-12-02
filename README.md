@@ -1,8 +1,3 @@
-Tabii ki, grup bilgilerini çıkartarak projen için hazır **README.md** dosyasını aşağıda sunuyorum.
-
-Bunu kopyalayıp projenin ana dizinine `README.md` ismiyle kaydedebilirsin.
-
-````markdown
 # Sliding Penguins Puzzle Game App 🐧❄️
 
 **Ders:** CENG211 - Programming Fundamentals  
