@@ -28,17 +28,30 @@ public class LightIceBlock extends Hazard implements ISlidable {
         // 1. Pengueni Sersemlet
         penguin.stun();
 
-        // 2. Buz Bloğu Kaymaya Başlar (Penguenin geldiği yönde)
-        // Penguenin yönünü bilmediğimiz için bu metodun imzasını değiştirmek yerine
-        // basit bir mantık kurabiliriz: "Hangi yönden geldiyse o yöne git"
-        // Ancak şimdilik Penguen sınıfındaki slide metodunda direction bilgisini buraya
-        // taşımadık.
-        // Hızlı çözüm: Penguen durur (return false). Buz bloğu hareketini 'slide'
-        // içinde tetikleriz.
-        // (Not: Tam fizik için onCollision(Penguin p, Direction d) yapmak gerekirdi ama
-        // ödevde basitçe 'transmitted direction' deniyor. Biz manuel tetikleyelim).
+        // 2. YÖN HESAPLAMA (Penguenin konumuna göre)
+        // Penguen nerede, ben neredeyim?
+        int pRow = penguin.getRow();
+        int pCol = penguin.getCol();
 
-        return false; // Penguen durur.
+        Direction slideDir = null;
+
+        if (this.row > pRow) { // Ben aşağıdayım, Penguen yukarıda -> AŞAĞI git
+            slideDir = Direction.DOWN;
+        } else if (this.row < pRow) { // Ben yukarıdayım, Penguen aşağıda -> YUKARI git
+            slideDir = Direction.UP;
+        } else if (this.col > pCol) { // Ben sağdayım, Penguen solda -> SAĞA git
+            slideDir = Direction.RIGHT;
+        } else if (this.col < pCol) { // Ben soldayım, Penguen sağda -> SOLA git
+            slideDir = Direction.LEFT;
+        }
+
+        // 3. Buz Bloğunu Kaydır
+        if (slideDir != null) {
+            System.out.println("   -> LightIceBlock starts sliding " + slideDir);
+            this.slide(slideDir, terrain);
+        }
+
+        return false; // Penguen durur (Blok kaymaya devam eder)
     }
 
     // Buz Bloğunun Kendi Hareketi

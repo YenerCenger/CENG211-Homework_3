@@ -1,6 +1,5 @@
 package entities;
 
-import core.IcyTerrain;
 import enums.HazardType;
 import interfaces.ICollidable;
 import interfaces.ITerrainObject;

@@ -1,21 +1,35 @@
 package entities;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
+
+import core.Cell;
 import core.IcyTerrain;
 import enums.Direction;
+import interfaces.ICollidable;
 import interfaces.ISlidable;
 import interfaces.ITerrainObject;
 
 public abstract class Penguin implements ITerrainObject, ISlidable {
-    protected java.util.List<Food> collectedFoods = new java.util.ArrayList<>();
     protected int row;
     protected int col;
     protected String name; // P1, P2, P3
     protected int score; // Toplanan yemek puanı
-    protected boolean isAlive = true;
+    protected boolean isAlive;
+    protected boolean isStunned = false;
+
+    // ÖZEL YETENEK DEĞİŞKENLERİ
+    protected boolean canJump = false; // Rockhopper için
+    protected int stopAtStep = -1; // King (5) ve Emperor (3) için. -1 ise kapalı.
+
+    // Toplanan yemekler
+    protected List<Food> collectedFoods = new ArrayList<>();
 
     public Penguin(String name) {
         this.name = name;
         this.score = 0;
+        this.isAlive = true;
     }
 
     @Override
@@ -37,7 +51,7 @@ public abstract class Penguin implements ITerrainObject, ISlidable {
         return score;
     }
 
-    public boolean getIsAlive() {
+    public boolean isAlive() {
         return isAlive;
     }
 
@@ -96,16 +110,23 @@ public abstract class Penguin implements ITerrainObject, ISlidable {
     // Her penguenin özel yeteneği farklıdır (Abstract)
     public abstract void performSpecialAction(IcyTerrain terrain);
 
-    // Kayma hareketi
     @Override
     public void slide(Direction direction, IcyTerrain terrain) {
         if (!isAlive)
-            return; // Ölü penguenler kayamaz
+            return;
 
-        // 1. Hedef koordinatı hesapla
+        // 1. DURMA YETENEĞİ KONTROLÜ (King & Emperor)
+        if (stopAtStep > 0) {
+            stopAtStep--;
+        } else if (stopAtStep == 0) {
+            System.out.println(name + " stopped early due to special action.");
+            stopAtStep = -1; // Yeteneği sıfırla
+            return;
+        }
+
+        // 2. HEDEF HESAPLA
         int nextRow = row;
         int nextCol = col;
-
         switch (direction) {
             case UP:
                 nextRow--;
@@ -121,69 +142,100 @@ public abstract class Penguin implements ITerrainObject, ISlidable {
                 break;
         }
 
-        // 2. SUYA DÜŞME KONTROLÜ (Harita dışına çıkıyor mu?)
+        // 3. SUYA DÜŞME KONTROLÜ
         if (!terrain.isValidPosition(nextRow, nextCol)) {
             System.out.println(name + " fell into the water!");
-            die(terrain); // Öldür
+            die(terrain);
             return;
         }
 
-        // 3. HEDEF KARE KONTROLÜ
-        core.Cell targetCell = terrain.getCell(nextRow, nextCol);
+        Cell targetCell = terrain.getCell(nextRow, nextCol);
 
-        // Engel Var mı? (Tehlike veya Başka Penguen)
-        // Not: Food bir engel değildir, üstünden geçilir veya durulur.
+        // 4. ENGEL KONTROLÜ
         boolean hasObstacle = targetCell.getObjects().stream()
-                .anyMatch(obj -> obj instanceof entities.Hazard ||
-                        obj instanceof entities.Penguin);
+                .anyMatch(obj -> obj instanceof Hazard ||
+                        obj instanceof Penguin);
 
         if (hasObstacle) {
-            // a) Çarpılan nesneyi bul
+            // *** ROCKHOPPER ZIPLAMA ***
+            if (this.canJump) {
+                System.out.println(name + " attempts to JUMP over the obstacle...");
+
+                int jumpRow = nextRow;
+                int jumpCol = nextCol;
+                switch (direction) {
+                    case UP:
+                        jumpRow--;
+                        break;
+                    case DOWN:
+                        jumpRow++;
+                        break;
+                    case LEFT:
+                        jumpCol--;
+                        break;
+                    case RIGHT:
+                        jumpCol++;
+                        break;
+                }
+
+                // Zıplanacak yer güvenli mi?
+                if (terrain.isValidPosition(jumpRow, jumpCol) && terrain.getCell(jumpRow, jumpCol).isEmpty()) {
+                    System.out.println("   -> JUMP SUCCESSFUL! Landed on (" + jumpRow + ", " + jumpCol + ")");
+
+                    terrain.getCell(row, col).removeObject(this);
+                    this.row = jumpRow;
+                    this.col = jumpCol;
+                    terrain.getCell(row, col).addObject(this);
+
+                    this.canJump = false; // Yetenek kullanıldı
+
+                    // İndiği yerde yemek var mı?
+                    Food f = terrain.getCell(row, col).getFirstObject(Food.class);
+                    if (f != null)
+                        eat(f, terrain);
+
+                    slide(direction, terrain); // Devam et
+                    return;
+                } else {
+                    System.out.println("   -> Jump FAILED! Target square not empty or water.");
+                    this.canJump = false; // Yetenek boşa gitti
+                }
+            }
+
+            // *** NORMAL ÇARPIŞMA ***
             ITerrainObject obstacle = targetCell.getObjects().stream()
-                    .filter(o -> o instanceof entities.Hazard
-                            || o instanceof entities.Penguin)
-                    .findFirst()
-                    .orElse(null);
-
-            // b) Eğer nesne ICollidable (Çarpışılabilir) ise özel kuralını çalıştır
-            if (obstacle instanceof interfaces.ICollidable) {
-                interfaces.ICollidable collidable = (interfaces.ICollidable) obstacle;
+                    .filter(o -> o instanceof ICollidable)
+                    .findFirst().orElse(null);
+            if (obstacle != null) {
+                ICollidable collidable = (ICollidable) obstacle;
                 boolean canContinue = collidable.onCollision(this, terrain);
-
-                // Eğer onCollision 'false' dönerse dur (Örn: HeavyIceBlock, HoleInIce)
                 if (!canContinue)
                     return;
-
-                // Eğer 'true' dönerse (Örn: İleride SeaLion sekince true dönebilir) devam et.
             } else {
-                // ICollidable değilse (Örn: Başka bir Penguen - şimdilik) küt diye dur.
-                // (İleride buraya "momentum transferi" kuralı eklenecek)
-                System.out.println(name + " bumped into " + obstacle.getSymbol() + " and stopped.");
+                System.out.println(name + " bumped into an obstacle and stopped.");
                 return;
             }
         }
 
-        // 4. HAREKET ET (Eski kareden çık, yeniye gir)
-        terrain.getCell(row, col).removeObject(this); // Eski kareden sil
+        // 5. HAREKET ET
+        System.out.println("   -> " + name + " slid to (" + nextRow + ", " + nextCol + ")");
+        terrain.getCell(row, col).removeObject(this);
         this.row = nextRow;
         this.col = nextCol;
-        targetCell.addObject(this); // Yeni kareye ekle
+        targetCell.addObject(this);
 
-        // 5. YEMEK VAR MI?
+        // 6. YEMEK YE
         Food food = targetCell.getFirstObject(Food.class);
         if (food != null) {
-            // Yemek varsa dur ve ye
             eat(food, terrain);
-            return; // Kayma biter
+            return;
         }
 
-        // 6. DEVAM ET (Recursion)
-        // Önü boşsa ve yemek yoksa kaymaya devam et
+        // 7. DEVAM ET
         slide(direction, terrain);
     }
 
-    protected boolean isStunned = false;
-
+    // Stun (Sersemletme) Durumu
     public void stun() {
         this.isStunned = true;
         System.out.println(name + " is stunned! Next turn will be skipped.");
@@ -193,7 +245,6 @@ public abstract class Penguin implements ITerrainObject, ISlidable {
         return isStunned;
     }
 
-    // Stun durumunu sıfırlamak için (Tur başında çağrılır)
     public void recover() {
         if (isStunned) {
             isStunned = false;
@@ -201,61 +252,37 @@ public abstract class Penguin implements ITerrainObject, ISlidable {
         }
     }
 
+    // AI Yön Seçimi
     public Direction chooseDirectionAI(IcyTerrain terrain) {
-        // 4 Yönü Kontrol Et
         Direction[] directions = Direction.values();
-
-        // Öncelik Listeleri
-        java.util.List<Direction> toFood = new java.util.ArrayList<>();
-        java.util.List<Direction> toSafeSpace = new java.util.ArrayList<>();
-        java.util.List<Direction> toHazard = new java.util.ArrayList<>();
-        java.util.List<Direction> toWater = new java.util.ArrayList<>();
+        List<Direction> toFood = new ArrayList<>();
+        List<Direction> toSafeSpace = new ArrayList<>();
+        List<Direction> toHazard = new ArrayList<>();
 
         for (Direction d : directions) {
-            // O yöne bakınca ne görüyoruz?
             Object result = scanDirection(d, terrain);
-
-            if (result instanceof Food) {
+            if (result instanceof Food)
                 toFood.add(d);
-            } else if (result instanceof entities.hazards.HoleInIce) {
-                toWater.add(d); // Deliği su gibi tehlikeli sayalım
-            } else if (result instanceof entities.Hazard) {
+            else if (result instanceof Hazard)
                 toHazard.add(d);
-            } else if (result.equals("WATER")) {
-                toWater.add(d);
-            } else {
-                toSafeSpace.add(d); // Boş alan veya güvenli engel
-            }
+            else if (result.equals("WATER") || result instanceof entities.hazards.HoleInIce) {
+                /* Suya gitme */ } else
+                toSafeSpace.add(d);
         }
 
-        // KARAR MEKANİZMASI (Ödev Sıralaması)
-        java.util.Random rng = new java.util.Random();
-
-        // 1. Yemek varsa oraya git
-        if (!toFood.isEmpty()) {
+        Random rng = new Random();
+        if (!toFood.isEmpty())
             return toFood.get(rng.nextInt(toFood.size()));
-        }
-        // 2. Güvenli bir yer varsa oraya git (Suya ve Hazarda gitme)
-        if (!toSafeSpace.isEmpty()) {
+        if (!toSafeSpace.isEmpty())
             return toSafeSpace.get(rng.nextInt(toSafeSpace.size()));
-        }
-        // 3. Mecbursa Hazarda git (Hole hariç)
-        if (!toHazard.isEmpty()) {
+        if (!toHazard.isEmpty())
             return toHazard.get(rng.nextInt(toHazard.size()));
-        }
-        // 4. Çare yoksa rastgele git (Suya düşebilir)
         return directions[rng.nextInt(directions.length)];
     }
 
-    // YARDIMCI METOT: Bir yöne bakınca ilk ne var?
     private Object scanDirection(Direction d, IcyTerrain terrain) {
         int r = row;
         int c = col;
-
-        // Yönde 1 adım ilerle (Sadece bitişiği değil, yolun sonunu görmek gerekebilir
-        // ama AI genelde "ilk gördüğüne" bakar. Basit simülasyon yapalım:
-        // O yöndeki ilk dolu kareyi veya harita sınırını bul.
-
         while (true) {
             switch (d) {
                 case UP:
@@ -271,31 +298,18 @@ public abstract class Penguin implements ITerrainObject, ISlidable {
                     c++;
                     break;
             }
-
-            // Suya mı düştü?
             if (!terrain.isValidPosition(r, c))
                 return "WATER";
-
-            core.Cell cell = terrain.getCell(r, c);
-
-            // Bir şey var mı?
+            Cell cell = terrain.getCell(r, c);
             if (!cell.isEmpty()) {
-                // Yemek var mı?
                 Food f = cell.getFirstObject(Food.class);
                 if (f != null)
                     return f;
-
-                // Tehlike var mı?
-                entities.Hazard h = cell.getFirstObject(entities.Hazard.class);
+                ITerrainObject h = cell.getFirstObject(Hazard.class);
                 if (h != null)
                     return h;
-
-                // Başka penguen? (Engel sayılır)
-                Penguin p = cell.getFirstObject(Penguin.class);
-                if (p != null)
-                    return "OBSTACLE";
+                return "OBSTACLE";
             }
-            // Boşsa döngü devam eder (Kaymaya devam edeceği için ilerisine bakıyoruz)
         }
     }
 }

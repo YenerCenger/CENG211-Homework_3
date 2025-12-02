@@ -11,7 +11,9 @@ public class RockhopperPenguin extends Penguin {
 
     @Override
     public void performSpecialAction(IcyTerrain terrain) {
-        // Rockhopper tehlikelerin üzerinden zıplayabilir.
-        System.out.println(name + " (Rockhopper) is preparing to jump over a hazard.");
+        // Zıplama bayrağını kaldır.
+        // Base class'taki slide metodu engele çarpınca bu bayrağa bakıp zıplayacak.
+        this.canJump = true;
+        System.out.println(name + " (Rockhopper) activated ability: Ready to JUMP over next obstacle.");
     }
 }

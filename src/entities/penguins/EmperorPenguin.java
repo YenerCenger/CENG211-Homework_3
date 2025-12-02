@@ -11,7 +11,8 @@ public class EmperorPenguin extends Penguin {
 
     @Override
     public void performSpecialAction(IcyTerrain terrain) {
-        // Emperor Penguin kayarken 3. karede durabilir.
-        System.out.println(name + " (Emperor) is preparing to stop at the 3rd square if possible.");
+        // Yeteneği aktif et: 3 adım sonra dur.
+        this.stopAtStep = 3;
+        System.out.println(name + " (Emperor) activated ability: Will stop at 3rd step.");
     }
 }

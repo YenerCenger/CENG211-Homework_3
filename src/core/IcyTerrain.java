@@ -241,7 +241,7 @@ public class IcyTerrain {
 
             // Sırayla her penguen oynar (P1 -> P2 -> P3) [cite: 101]
             for (Penguin p : penguins) {
-                if (!p.getIsAlive())
+                if (!p.isAlive())
                     continue; // Ölüler oynayamaz
 
                 // Stun kontrolü
@@ -258,12 +258,20 @@ public class IcyTerrain {
                 // 1. ÖZEL GÜÇ KULLANIMI
                 boolean usedSpecial = false;
                 if (isPlayer) {
-                    // Oyuncuya sor
-                    System.out.print("Will " + p.getSymbol() + " use its special action? (Y/N) --> ");
-                    String input = scanner.next();
-                    if (input.equalsIgnoreCase("Y")) {
-                        p.performSpecialAction(this);
-                        usedSpecial = true;
+                    // DOĞRU GİRİŞ YAPILANA KADAR SOR (WHILE DÖNGÜSÜ)
+                    boolean validInput = false;
+                    while (!validInput) {
+                        System.out.print("Will " + p.getSymbol() + " use its special action? (Y/N) --> ");
+                        String input = scanner.next().toUpperCase();
+                        if (input.equals("Y")) {
+                            p.performSpecialAction(this);
+                            usedSpecial = true;
+                            validInput = true;
+                        } else if (input.equals("N")) {
+                            validInput = true;
+                        } else {
+                            System.out.println("Invalid input! Please enter Y or N.");
+                        }
                     }
                 } else {
                     // AI: %30 şansla kullan [cite: 96]
@@ -279,25 +287,27 @@ public class IcyTerrain {
                 // 2. YÖN SEÇİMİ
                 Direction moveDir = null;
                 if (isPlayer) {
-                    // Oyuncudan yön iste [cite: 19]
-                    System.out.print("Which direction will " + p.getSymbol() + " move? (U/D/L/R) --> ");
-                    String dStr = scanner.next().toUpperCase();
-                    switch (dStr) {
-                        case "U":
-                            moveDir = Direction.UP;
-                            break;
-                        case "D":
-                            moveDir = Direction.DOWN;
-                            break;
-                        case "L":
-                            moveDir = Direction.LEFT;
-                            break;
-                        case "R":
-                            moveDir = Direction.RIGHT;
-                            break;
-                        default:
-                            System.out.println("Invalid input. Random direction selected.");
-                            moveDir = Direction.values()[random.nextInt(4)];
+                    // DOĞRU GİRİŞ YAPILANA KADAR SOR (WHILE DÖNGÜSÜ)
+                    while (moveDir == null) {
+                        System.out.print("Which direction will " + p.getSymbol() + " move? (U/D/L/R) --> ");
+                        String dStr = scanner.next().toUpperCase();
+                        switch (dStr) {
+                            case "U":
+                                moveDir = Direction.UP;
+                                break;
+                            case "D":
+                                moveDir = Direction.DOWN;
+                                break;
+                            case "L":
+                                moveDir = Direction.LEFT;
+                                break;
+                            case "R":
+                                moveDir = Direction.RIGHT;
+                                break;
+                            default:
+                                System.out.println("Invalid input! Please enter U, D, L, or R.");
+                                // moveDir hala null olduğu için döngü başa döner
+                        }
                     }
                 } else {
                     // AI Karar versin
