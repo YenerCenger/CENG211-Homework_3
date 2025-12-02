@@ -256,7 +256,6 @@ public class IcyTerrain {
                 boolean isPlayer = (p == playerPenguin);
 
                 // 1. ÖZEL GÜÇ KULLANIMI
-                boolean usedSpecial = false;
                 if (isPlayer) {
                     // DOĞRU GİRİŞ YAPILANA KADAR SOR (WHILE DÖNGÜSÜ)
                     boolean validInput = false;
@@ -265,7 +264,6 @@ public class IcyTerrain {
                         String input = scanner.next().toUpperCase();
                         if (input.equals("Y")) {
                             p.performSpecialAction(this);
-                            usedSpecial = true;
                             validInput = true;
                         } else if (input.equals("N")) {
                             validInput = true;
@@ -278,7 +276,6 @@ public class IcyTerrain {
                     if (random.nextInt(100) < 30) {
                         System.out.println(p.getSymbol() + " chooses to USE its special action.");
                         p.performSpecialAction(this);
-                        usedSpecial = true;
                     } else {
                         System.out.println(p.getSymbol() + " does NOT use its special action.");
                     }
