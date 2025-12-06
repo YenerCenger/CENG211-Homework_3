@@ -1,13 +1,19 @@
 package entities.penguins;
 
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.Scanner;
 
 import core.Cell;
 import core.IcyTerrain;
 import entities.Food;
 import entities.Penguin;
+import enums.Direction;
 
 public class RoyalPenguin extends Penguin {
+
+    private static final Scanner INPUT = new Scanner(System.in);
 
     public RoyalPenguin(String name) {
         super(name);
@@ -30,9 +36,9 @@ public class RoyalPenguin extends Penguin {
         // Değilse (AI) rastgele güvenli bir yer seçsin.
 
         if (name.equals("P2")) {
-            Scanner scanner = new Scanner(System.in);
+            // Oyuncu pengueni için girdiyi al
             System.out.print("Choose 1-step direction (U/D/L/R) --> ");
-            String input = scanner.next().toUpperCase();
+            String input = INPUT.next().toUpperCase();
             switch (input) {
                 case "U":
                     dr = -1;
@@ -51,22 +57,43 @@ public class RoyalPenguin extends Penguin {
                     return;
             }
         } else {
-            // AI (Rastgele geçerli bir yön seçmeye çalışır)
-            // Basitçe rastgele bir yön deneyelim
-            int randomDir = new java.util.Random().nextInt(4);
-            switch (randomDir) {
-                case 0:
-                    dr = -1;
-                    break; // UP
-                case 1:
-                    dr = 1;
-                    break; // DOWN
-                case 2:
-                    dc = -1;
-                    break; // LEFT
-                case 3:
-                    dc = 1;
-                    break; // RIGHT
+            // AI: Güvenli bir komşu kare bulmak için yönleri karıştırıp dener.
+            List<Direction> dirs = Arrays.asList(Direction.values());
+            Collections.shuffle(dirs);
+            boolean found = false;
+            for (Direction d : dirs) {
+                int candR = row;
+                int candC = col;
+                switch (d) {
+                    case UP:
+                        candR--;
+                        break;
+                    case DOWN:
+                        candR++;
+                        break;
+                    case LEFT:
+                        candC--;
+                        break;
+                    case RIGHT:
+                        candC++;
+                        break;
+                }
+                if (!terrain.isValidPosition(candR, candC)) {
+                    continue;
+                }
+                Cell target = terrain.getCell(candR, candC);
+                boolean blocked = target.getObjects().stream()
+                        .anyMatch(obj -> obj instanceof entities.Hazard || obj instanceof Penguin);
+                if (!blocked) {
+                    dr = candR - row;
+                    dc = candC - col;
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                System.out.println("No safe adjacent square found. Action wasted.");
+                return;
             }
         }
 

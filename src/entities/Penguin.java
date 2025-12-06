@@ -8,8 +8,10 @@ import core.Cell;
 import core.IcyTerrain;
 import enums.Direction;
 import interfaces.ICollidable;
+import interfaces.ICollidable.CollisionResult;
 import interfaces.ISlidable;
 import interfaces.ITerrainObject;
+import entities.hazards.HoleInIce;
 
 public abstract class Penguin implements ITerrainObject, ISlidable {
     protected int row;
@@ -49,6 +51,10 @@ public abstract class Penguin implements ITerrainObject, ISlidable {
 
     public int getScore() {
         return score;
+    }
+
+    public List<Food> getCollectedFoods() {
+        return new ArrayList<>(collectedFoods);
     }
 
     public boolean isAlive() {
@@ -111,17 +117,27 @@ public abstract class Penguin implements ITerrainObject, ISlidable {
     public abstract void performSpecialAction(IcyTerrain terrain);
 
     @Override
-    public void slide(Direction direction, IcyTerrain terrain) {
+    public ISlidable.SlideResult slide(Direction direction, IcyTerrain terrain) {
+        return slide(direction, terrain, ISlidable.MAX_SLIDE_STEPS);
+    }
+
+    @Override
+    public ISlidable.SlideResult slide(Direction direction, IcyTerrain terrain, int stepsRemaining) {
         if (!isAlive)
-            return;
+            return ISlidable.SlideResult.stopped("dead");
+
+        if (stepsRemaining <= 0)
+            return ISlidable.SlideResult.stopped("max-steps");
 
         // 1. DURMA YETENEĞİ KONTROLÜ (King & Emperor)
+        boolean willStopAfterThisMove = false;
         if (stopAtStep > 0) {
-            stopAtStep--;
+            stopAtStep--; // bu adım sayıldı
+            willStopAfterThisMove = (stopAtStep == 0);
         } else if (stopAtStep == 0) {
             System.out.println(name + " stopped early due to special action.");
             stopAtStep = -1; // Yeteneği sıfırla
-            return;
+            return ISlidable.SlideResult.stopped("special-stop");
         }
 
         // 2. HEDEF HESAPLA
@@ -146,7 +162,7 @@ public abstract class Penguin implements ITerrainObject, ISlidable {
         if (!terrain.isValidPosition(nextRow, nextCol)) {
             System.out.println(name + " fell into the water!");
             die(terrain);
-            return;
+            return ISlidable.SlideResult.stopped("water");
         }
 
         Cell targetCell = terrain.getCell(nextRow, nextCol);
@@ -194,8 +210,7 @@ public abstract class Penguin implements ITerrainObject, ISlidable {
                     if (f != null)
                         eat(f, terrain);
 
-                    slide(direction, terrain); // Devam et
-                    return;
+                    return slide(direction, terrain, stepsRemaining - 1); // Devam et
                 } else {
                     System.out.println("   -> Jump FAILED! Target square not empty or water.");
                     this.canJump = false; // Yetenek boşa gitti
@@ -208,12 +223,19 @@ public abstract class Penguin implements ITerrainObject, ISlidable {
                     .findFirst().orElse(null);
             if (obstacle != null) {
                 ICollidable collidable = (ICollidable) obstacle;
-                boolean canContinue = collidable.onCollision(this, terrain);
-                if (!canContinue)
-                    return;
+                CollisionResult result = collidable.onCollision(this, terrain);
+                if (result == null || !result.shouldContinue()) {
+                    return ISlidable.SlideResult.stopped("collision-stop");
+                }
+
+                // Çarpışma yeni bir yön gerektiriyorsa, mevcut kareden o yönde kaymaya yeniden başla.
+                if (result.getOverrideDirection() != null) {
+                    return slide(result.getOverrideDirection(), terrain, stepsRemaining - 1);
+                }
+                // Aksi halde aynı yönle devam edip hedef kareye ilerleyecek.
             } else {
                 System.out.println(name + " bumped into an obstacle and stopped.");
-                return;
+                return ISlidable.SlideResult.stopped("obstacle");
             }
         }
 
@@ -228,11 +250,18 @@ public abstract class Penguin implements ITerrainObject, ISlidable {
         Food food = targetCell.getFirstObject(Food.class);
         if (food != null) {
             eat(food, terrain);
-            return;
+            return ISlidable.SlideResult.stopped("ate");
+        }
+
+        // Özel durdurma bu adım sonrası tetiklenmişse burada dur.
+        if (willStopAfterThisMove) {
+            System.out.println(name + " stopped early due to special action.");
+            stopAtStep = -1;
+            return ISlidable.SlideResult.stopped("special-stop");
         }
 
         // 7. DEVAM ET
-        slide(direction, terrain);
+        return slide(direction, terrain, stepsRemaining - 1);
     }
 
     // Stun (Sersemletme) Durumu
@@ -257,17 +286,24 @@ public abstract class Penguin implements ITerrainObject, ISlidable {
         Direction[] directions = Direction.values();
         List<Direction> toFood = new ArrayList<>();
         List<Direction> toSafeSpace = new ArrayList<>();
-        List<Direction> toHazard = new ArrayList<>();
+        List<Direction> toHazardNonHole = new ArrayList<>();
+        List<Direction> toWater = new ArrayList<>();
 
         for (Direction d : directions) {
             Object result = scanDirection(d, terrain);
-            if (result instanceof Food)
+            if (result instanceof Food) {
                 toFood.add(d);
-            else if (result instanceof Hazard)
-                toHazard.add(d);
-            else if (result.equals("WATER") || result instanceof entities.hazards.HoleInIce) {
-                /* Suya gitme */ } else
+            } else if (result instanceof Hazard) {
+                if (result instanceof HoleInIce) {
+                    toHazardNonHole.add(d); // HoleInIce de kaçınılacak
+                } else {
+                    toHazardNonHole.add(d);
+                }
+            } else if ("WATER".equals(result)) {
+                toWater.add(d);
+            } else {
                 toSafeSpace.add(d);
+            }
         }
 
         Random rng = new Random();
@@ -275,8 +311,10 @@ public abstract class Penguin implements ITerrainObject, ISlidable {
             return toFood.get(rng.nextInt(toFood.size()));
         if (!toSafeSpace.isEmpty())
             return toSafeSpace.get(rng.nextInt(toSafeSpace.size()));
-        if (!toHazard.isEmpty())
-            return toHazard.get(rng.nextInt(toHazard.size()));
+        if (!toHazardNonHole.isEmpty())
+            return toHazardNonHole.get(rng.nextInt(toHazardNonHole.size()));
+        if (!toWater.isEmpty())
+            return toWater.get(rng.nextInt(toWater.size()));
         return directions[rng.nextInt(directions.length)];
     }
 

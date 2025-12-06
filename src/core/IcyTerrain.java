@@ -21,6 +21,7 @@ import enums.FoodType;
 import enums.HazardType;
 import enums.PenguinType;
 import interfaces.ITerrainObject;
+import interfaces.ISlidable;
 
 public class IcyTerrain {
     private ArrayList<ArrayList<Cell>> map; // 2D Grid
@@ -28,11 +29,14 @@ public class IcyTerrain {
     private final int ROWS = 10;
     private final int COLS = 10;
     private Random random;
+    private final Scanner input;
+    private Penguin playerPenguin;
 
     public IcyTerrain() {
         this.map = new ArrayList<>();
         this.penguins = new ArrayList<>();
         this.random = new Random();
+        this.input = new Scanner(System.in); // paylaşımlı giriş kaynağı
 
         initializeEmptyGrid();
         initializeGameObjects(); // Nesneleri yerleştir
@@ -47,7 +51,7 @@ public class IcyTerrain {
             }
             map.add(row);
         }
-        System.out.println("An 10x10 icy terrain grid is being generated.");
+        System.out.println("Welcome to Sliding Penguins Puzzle Game App. An 10x10 icy terrain grid is being generated.");
     }
 
     // *** ANA METOT: TÜM NESNELERİ YERLEŞTİRİR ***
@@ -57,6 +61,8 @@ public class IcyTerrain {
         generatePenguins();
         generateHazards();
         generateFoods();
+        // Başlangıç özetini göster
+        printInitialSummary();
     }
 
     // 1. PENGUENLERİ OLUŞTUR (3 Adet, Kenarlara)
@@ -202,11 +208,21 @@ public class IcyTerrain {
         }
     }
 
+    public Penguin getPlayerPenguin() {
+        return playerPenguin;
+    }
+
     public void addObjectToGrid(ITerrainObject object, int row, int col) {
         if (isValidPosition(row, col)) {
             object.setPosition(row, col);
             getCell(row, col).addObject(object);
         }
+    }
+
+    // Başlangıç gridini ve legend'i yazdır
+    public void printInitialSummary() {
+        System.out.println("\nInitial icy terrain grid:");
+        printTerrain();
     }
 
     public void printTerrain() {
@@ -226,13 +242,12 @@ public class IcyTerrain {
     }
 
     public void startGame() {
-        Scanner scanner = new Scanner(System.in);
-
-        // Rastgele bir pengueni oyuncuya ata (Ödev P2 örneğini vermiş, biz de P2'yi
-        // seçelim)
-        // Listede P1, P2, P3 var. İndeks 1 -> P2
-        Penguin playerPenguin = penguins.get(1);
-        System.out.println("\nPenguin 2 (P2): " + playerPenguin.getClass().getSimpleName() + " ---> YOUR PENGUIN");
+        // Rastgele bir pengueni oyuncuya ata
+        playerPenguin = penguins.get(random.nextInt(penguins.size()));
+        System.out.println("\nThese are the penguins on the icy terrain:");
+        for (Penguin p : penguins) {
+            System.out.println("- " + p.getSymbol() + " (" + p.getClass().getSimpleName() + ")" + (p == playerPenguin ? " ---> YOUR PENGUIN" : ""));
+        }
 
         int maxTurns = 4; // Her penguenin 4 turu var [cite: 18]
 
@@ -261,11 +276,11 @@ public class IcyTerrain {
                     boolean validInput = false;
                     while (!validInput) {
                         System.out.print("Will " + p.getSymbol() + " use its special action? (Y/N) --> ");
-                        String input = scanner.next().toUpperCase();
-                        if (input.equals("Y")) {
+                        String inputStr = input.next().toUpperCase();
+                        if (inputStr.equals("Y")) {
                             p.performSpecialAction(this);
                             validInput = true;
-                        } else if (input.equals("N")) {
+                        } else if (inputStr.equals("N")) {
                             validInput = true;
                         } else {
                             System.out.println("Invalid input! Please enter Y or N.");
@@ -287,7 +302,7 @@ public class IcyTerrain {
                     // DOĞRU GİRİŞ YAPILANA KADAR SOR (WHILE DÖNGÜSÜ)
                     while (moveDir == null) {
                         System.out.print("Which direction will " + p.getSymbol() + " move? (U/D/L/R) --> ");
-                        String dStr = scanner.next().toUpperCase();
+                        String dStr = input.next().toUpperCase();
                         switch (dStr) {
                             case "U":
                                 moveDir = Direction.UP;
@@ -313,7 +328,10 @@ public class IcyTerrain {
                 }
 
                 // 3. HAREKETİ BAŞLAT
-                p.slide(moveDir, this);
+                ISlidable.SlideResult slideResult = p.slide(moveDir, this);
+                if (slideResult != null && "max-steps".equals(slideResult.getReason())) {
+                    System.out.println(p.getSymbol() + " stopped due to max slide steps guard.");
+                }
 
                 // Her hamleden sonra haritayı göster
                 printTerrain();
@@ -322,17 +340,40 @@ public class IcyTerrain {
 
         // OYUN BİTTİ - SKOR TABLOSU
         showLeaderboard();
+
+        // Oyun bittiğinde giriş kaynağını kapat.
+        input.close();
+    }
+
+    public Scanner getInput() {
+        return input;
     }
 
     private void showLeaderboard() {
-        System.out.println("\nGAME OVER");
-        System.out.println("SCOREBOARD FOR THE PENGUINS *****");
+        System.out.println("\n***** GAME OVER *****");
+        System.out.println("***** SCOREBOARD FOR THE PENGUINS *****");
+
         // Skorları sırala (Yüksekten düşüğe)
-        penguins.sort((p1, p2) -> Integer.compare(p2.getScore(), p1.getScore())); // getScore() eklemelisin
+        penguins.sort((p1, p2) -> Integer.compare(p2.getScore(), p1.getScore()));
 
         int rank = 1;
         for (Penguin p : penguins) {
-            System.out.println(rank + ". place: " + p.getSymbol() + " - Total Score: " + p.getScore());
+            System.out.println(rank + ". place: " + p.getSymbol());
+            List<entities.Food> foods = p.getCollectedFoods();
+            if (foods.isEmpty()) {
+                System.out.println("|--> Food items: none");
+            } else {
+                System.out.print("|--> Food items: ");
+                for (int i = 0; i < foods.size(); i++) {
+                    entities.Food f = foods.get(i);
+                    System.out.print(f.getSymbol() + " (" + f.getWeight() + " units)");
+                    if (i < foods.size() - 1) {
+                        System.out.print(", ");
+                    }
+                }
+                System.out.println();
+            }
+            System.out.println("|--> Total weight: " + p.getScore() + " units\n");
             rank++;
         }
     }

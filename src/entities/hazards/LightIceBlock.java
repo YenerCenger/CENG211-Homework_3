@@ -7,6 +7,7 @@ import entities.Hazard;
 import entities.Penguin;
 import enums.Direction;
 import enums.HazardType;
+import interfaces.ICollidable;
 import interfaces.ISlidable;
 import interfaces.ITerrainObject;
 
@@ -22,7 +23,7 @@ public class LightIceBlock extends Hazard implements ISlidable {
 
     // Çarpışma Mantığı (Biri bana çarparsa ne olur?)
     @Override
-    public boolean onCollision(Penguin penguin, IcyTerrain terrain) {
+    public ICollidable.CollisionResult onCollision(Penguin penguin, IcyTerrain terrain) {
         System.out.println(penguin.getSymbol() + " kicked a LightIceBlock!");
 
         // 1. Pengueni Sersemlet
@@ -51,12 +52,20 @@ public class LightIceBlock extends Hazard implements ISlidable {
             this.slide(slideDir, terrain);
         }
 
-        return false; // Penguen durur (Blok kaymaya devam eder)
+        return ICollidable.CollisionResult.stop(); // Penguen durur (Blok kaymaya devam eder)
     }
 
     // Buz Bloğunun Kendi Hareketi
     @Override
-    public void slide(Direction direction, IcyTerrain terrain) {
+    public ISlidable.SlideResult slide(Direction direction, IcyTerrain terrain) {
+        return slide(direction, terrain, ISlidable.MAX_SLIDE_STEPS);
+    }
+
+    @Override
+    public ISlidable.SlideResult slide(Direction direction, IcyTerrain terrain, int stepsRemaining) {
+        if (stepsRemaining <= 0) {
+            return ISlidable.SlideResult.stopped("max-steps");
+        }
         // 1. Hedef Hesapla
         int nextRow = row;
         int nextCol = col;
@@ -79,7 +88,7 @@ public class LightIceBlock extends Hazard implements ISlidable {
         if (!terrain.isValidPosition(nextRow, nextCol)) {
             System.out.println("LightIceBlock fell into the water!");
             terrain.getCell(row, col).removeObject(this);
-            return;
+            return ISlidable.SlideResult.stopped("water");
         }
 
         Cell targetCell = terrain.getCell(nextRow, nextCol);
@@ -95,19 +104,19 @@ public class LightIceBlock extends Hazard implements ISlidable {
                 System.out.println("LightIceBlock fell into a hole and plugged it!");
                 terrain.getCell(row, col).removeObject(this); // Eski yerden sil
                 ((HoleInIce) hole).plug(); // Deliği tıka
-                return; // Hareket biter
+                return ISlidable.SlideResult.stopped("plugged-hole"); // Hareket biter
             }
 
             // b) SeaLion'a çarparsa -> Momentum aktar (SeaLion kayar, ben dururum)
             ITerrainObject sealion = targetCell.getFirstObject(SeaLion.class);
             if (sealion != null) {
                 System.out.println("LightIceBlock hit a SeaLion. Momentum transferred!");
-                ((SeaLion) sealion).slide(direction, terrain); // SeaLion kaymaya başlar
-                return; // Ben dururum
+                ((SeaLion) sealion).slide(direction, terrain, stepsRemaining - 1); // SeaLion kaymaya başlar
+                return ISlidable.SlideResult.stopped("sealion-collision"); // Ben dururum
             }
 
             // c) Diğer engellerde dur
-            return;
+            return ISlidable.SlideResult.stopped("blocked");
         }
 
         // 4. HAREKET ET
@@ -124,6 +133,6 @@ public class LightIceBlock extends Hazard implements ISlidable {
         }
 
         // 6. Devam Et
-        slide(direction, terrain);
+        return slide(direction, terrain, stepsRemaining - 1);
     }
 }

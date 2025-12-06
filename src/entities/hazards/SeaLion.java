@@ -7,6 +7,7 @@ import entities.Hazard;
 import entities.Penguin;
 import enums.Direction;
 import enums.HazardType;
+import interfaces.ICollidable;
 import interfaces.ISlidable;
 import interfaces.ITerrainObject;
 
@@ -22,7 +23,7 @@ public class SeaLion extends Hazard implements ISlidable {
 
     // Çarpışma: Penguen bana çarparsa ne olur?
     @Override
-    public boolean onCollision(Penguin penguin, IcyTerrain terrain) {
+    public ICollidable.CollisionResult onCollision(Penguin penguin, IcyTerrain terrain) {
         System.out.println("BOING! " + penguin.getSymbol() + " bounced off the SeaLion!");
 
         // 1. YÖN HESAPLAMA (Momentum Transferi)
@@ -41,15 +42,38 @@ public class SeaLion extends Hazard implements ISlidable {
             this.slide(slideDir, terrain);
         }
 
-        // Not: Penguen de sekmeli (ters yöne gitmeli) ama ödevde "Penguen durur, SeaLion kayar"
-        // mantığı momentum transferi için yeterli kabul edilebilir.
+        // Penguen ters yöne sektirilir.
+        Direction bounceDir = slideDir == null ? null : opposite(slideDir);
+        return bounceDir == null ? ICollidable.CollisionResult.stop()
+                : ICollidable.CollisionResult.continueWith(bounceDir);
+    }
 
-        return false; // Penguen durur.
+    private Direction opposite(Direction dir) {
+        switch (dir) {
+            case UP:
+                return Direction.DOWN;
+            case DOWN:
+                return Direction.UP;
+            case LEFT:
+                return Direction.RIGHT;
+            case RIGHT:
+                return Direction.LEFT;
+            default:
+                return null;
+        }
     }
 
     // SeaLion Kayması (Penguen gibi ama yemek yemez)
     @Override
-    public void slide(Direction direction, IcyTerrain terrain) {
+    public ISlidable.SlideResult slide(Direction direction, IcyTerrain terrain) {
+        return slide(direction, terrain, ISlidable.MAX_SLIDE_STEPS);
+    }
+
+    @Override
+    public ISlidable.SlideResult slide(Direction direction, IcyTerrain terrain, int stepsRemaining) {
+        if (stepsRemaining <= 0) {
+            return ISlidable.SlideResult.stopped("max-steps");
+        }
         // 1. Hedef Hesapla
         int nextRow = row;
         int nextCol = col;
@@ -72,7 +96,7 @@ public class SeaLion extends Hazard implements ISlidable {
         if (!terrain.isValidPosition(nextRow, nextCol)) {
             System.out.println("SeaLion fell into the water!");
             terrain.getCell(row, col).removeObject(this);
-            return;
+            return ISlidable.SlideResult.stopped("water");
         }
 
         Cell targetCell = terrain.getCell(nextRow, nextCol);
@@ -88,9 +112,9 @@ public class SeaLion extends Hazard implements ISlidable {
                 System.out.println("SeaLion fell into a hole and plugged it!");
                 terrain.getCell(row, col).removeObject(this);
                 ((HoleInIce) hole).plug();
-                return;
+                return ISlidable.SlideResult.stopped("plugged-hole");
             }
-            return; // Diğer engellerde dur
+            return ISlidable.SlideResult.stopped("blocked"); // Diğer engellerde dur
         }
 
         // 4. Hareket
@@ -106,6 +130,6 @@ public class SeaLion extends Hazard implements ISlidable {
         }
 
         // 6. Devam
-        slide(direction, terrain);
+        return slide(direction, terrain, stepsRemaining - 1);
     }
 }

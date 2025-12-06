@@ -4,6 +4,7 @@ import core.IcyTerrain;
 import entities.Hazard;
 import entities.Penguin;
 import enums.HazardType;
+import interfaces.ICollidable;
 
 public class HoleInIce extends Hazard {
     private boolean isPlugged = false;
@@ -28,15 +29,15 @@ public class HoleInIce extends Hazard {
 
     // onCollision metodunu güncelle: Tıkalıysa penguen geçebilir!
     @Override
-    public boolean onCollision(Penguin penguin, IcyTerrain terrain) {
+    public ICollidable.CollisionResult onCollision(Penguin penguin, IcyTerrain terrain) {
         if (isPlugged) {
             System.out.println(penguin.getSymbol() + " passed safely over a plugged hole.");
-            return true; // Hareket devam eder!
+            return ICollidable.CollisionResult.continueSame(); // Hareket devam eder!
         }
 
         // Tıkalı değilse ölür
         System.out.println(penguin.getSymbol() + " fell into a HoleInIce!");
         penguin.die(terrain);
-        return false;
+        return ICollidable.CollisionResult.stop();
     }
 }
