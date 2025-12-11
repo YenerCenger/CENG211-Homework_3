@@ -233,8 +233,6 @@ public class IcyTerrain {
     }
 
     public void startGame() {
-        // Yerel scanner tanımı SİLİNDİ (Sınıfın en tepesinde tanımladığımız this.scanner kullanılacak)
-
         // Rastgele bir pengueni oyuncuya ata (İndeks 0, 1 veya 2)
         int randomIndex = random.nextInt(penguins.size());
         Penguin playerPenguin = penguins.get(randomIndex);
@@ -263,9 +261,11 @@ public class IcyTerrain {
 
                 System.out.println("\n" + p.getSymbol() + "'s turn:");
 
-                // OYUNCU MU, AI MI?
-                // DİKKAT: Artık isimle değil, isPlayer() ile kontrol ediyoruz
-                boolean isPlayer = p.isPlayer(); 
+                boolean isPlayer = p.isPlayer();
+                
+                // AI İÇİN KARAR VERİLEN YÖNÜ BURADA SAKLAYACAĞIZ
+                // (Böylece AI yetenek kullanıp kullanmayacağına bakarken seçtiği yönü, hareket ederken de kullanacak)
+                enums.Direction aiDecidedDir = null;
 
                 // 1. ÖZEL GÜÇ KULLANIMI
                 if (isPlayer) {
@@ -284,17 +284,20 @@ public class IcyTerrain {
                     }
                 } else {
                     // --- AI MANTIĞI (DÜZELTİLMİŞ HALİ) ---
+                    
+                    // 1. Önce AI yön kararını versin ve bunu SAKLAYALIM
+                    // (chooseDirectionAI metodunu sadece BİR KEZ çağırıyoruz)
+                    aiDecidedDir = p.chooseDirectionAI(this);
+                    
                     boolean shouldUseSpecial = false;
 
                     // Kural: Rockhopper tehlikeye gidiyorsa OTOMATİK kullanır
                     if (p instanceof entities.penguins.RockhopperPenguin) {
-                        // 1. Önce AI'nın nereye gitmek istediğine bakalım
-                        enums.Direction intendedDir = p.chooseDirectionAI(this);
                         
-                        // 2. O yönde ne var?
+                        // 2. AI'nın seçtiği yönde (aiDecidedDir) ne var?
                         int checkR = p.getRow();
                         int checkC = p.getCol();
-                        switch (intendedDir) {
+                        switch (aiDecidedDir) {
                             case UP: checkR--; break;
                             case DOWN: checkR++; break;
                             case LEFT: checkC--; break;
@@ -335,6 +338,7 @@ public class IcyTerrain {
 
                 // 2. YÖN SEÇİMİ
                 enums.Direction moveDir = null;
+                
                 if (isPlayer) {
                     // DOĞRU GİRİŞ YAPILANA KADAR SOR (WHILE DÖNGÜSÜ)
                     while (moveDir == null) {
@@ -349,8 +353,8 @@ public class IcyTerrain {
                         }
                     }
                 } else {
-                    // AI Karar versin
-                    moveDir = p.chooseDirectionAI(this);
+                    // AI ise zaten yukarıda karar verdiği yönü kullanır
+                    moveDir = aiDecidedDir;
                     System.out.println(p.getSymbol() + " chooses to move " + moveDir);
                 }
 

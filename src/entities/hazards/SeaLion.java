@@ -94,13 +94,20 @@ public class SeaLion extends Hazard implements ISlidable {
         Cell targetCell = terrain.getCell(nextRow, nextCol);
 
         // 3. Engel
+        // DÜZELTME: Tıkalı delikler (PH) engel sayılmaz, üzerinden geçilir!
         boolean hasObstacle = targetCell.getObjects().stream()
-                .anyMatch(obj -> obj instanceof Hazard || obj instanceof Penguin);
+                .anyMatch(obj -> {
+                    if (obj instanceof HoleInIce) {
+                        return !((HoleInIce) obj).isPlugged(); // Tıkalı DEĞİLSE engeldir
+                    }
+                    return obj instanceof Hazard || obj instanceof Penguin;
+                });
 
         if (hasObstacle) {
             // Deliğe girerse tıka
             ITerrainObject hole = targetCell.getFirstObject(HoleInIce.class);
-            if (hole != null) {
+            // DÜZELTME: Sadece tıkalı değilse düşer!
+            if (hole != null && !((HoleInIce) hole).isPlugged()) {
                 System.out.println("SeaLion fell into a hole and plugged it!");
                 terrain.getCell(row, col).removeObject(this);
                 ((HoleInIce) hole).plug();

@@ -17,9 +17,8 @@ public class RoyalPenguin extends Penguin {
 
         int dr = 0, dc = 0;
 
-        // ARTIK İSME DEĞİL, BAYRAĞA BAKIYORUZ
         if (this.isPlayer()) {
-            // Input işlemini IcyTerrain üzerinden yapıyoruz (UI Logic Entity'den çıktı)
+            // OYUNCU İSE: Girdiyi IcyTerrain üzerinden al
             String input = terrain.askForInput("Choose 1-step direction (U/D/L/R) --> ");
             
             switch (input) {
@@ -32,7 +31,8 @@ public class RoyalPenguin extends Penguin {
                     return;
             }
         } else {
-            // AI: Sadece GÜVENLİ (Su veya Tehlike olmayan) kareleri bul [cite: 98]
+            // AI İSE:
+            // Sadece GÜVENLİ (Su, Tehlike veya Penguen olmayan) kareleri bul
             java.util.List<Integer> safeDirections = new java.util.ArrayList<>();
             int[][] deltas = { {-1, 0}, {1, 0}, {0, -1}, {0, 1} }; // UP, DOWN, LEFT, RIGHT
 
@@ -57,7 +57,8 @@ public class RoyalPenguin extends Penguin {
                 // Güvenli yer varsa oradan seç
                 selectedDir = safeDirections.get(new java.util.Random().nextInt(safeDirections.size()));
             } else {
-                // Mecbursa rastgele git (Fallback)
+                // "UNLESS THEY HAVE NO OTHER CHOICE":
+                // Güvenli yer yoksa, mecburen rastgele bir yöne (tehlikeye/suya) git.
                 selectedDir = new java.util.Random().nextInt(4);
             }
 
@@ -69,12 +70,13 @@ public class RoyalPenguin extends Penguin {
             }
         }
         
-        // ... (Metodun geri kalanı aynı: Çarpışma kontrolü ve hareket) ...
-        // KODUN DEVAMI AYNI KALACAK, SİLME!
+        // --- HAREKET VE SONUÇ MANTIĞI ---
+        
         int nextRow = row + dr;
         int nextCol = col + dc;
 
-        // 1. Harita dışına çıkıyor mu?
+        // 1. Harita dışına çıkıyor mu? (SUYA DÜŞME)
+        // Eğer AI'nın "başka şansı yoksa" ve burayı seçtiyse, düşer ve ölür.
         if (!terrain.isValidPosition(nextRow, nextCol)) {
             System.out.println("Oops! " + name + " stepped into the water using special action!");
             die(terrain);
@@ -83,19 +85,37 @@ public class RoyalPenguin extends Penguin {
 
         Cell targetCell = terrain.getCell(nextRow, nextCol);
 
-        // 2. Hedef Dolu mu? (Penguen veya Tehlike varsa gidemez)
+        // 2. Hedef Dolu mu? (Penguen veya Tehlike varsa)
         if (!targetCell.isEmpty()) {
-            boolean hasObstacle = targetCell.getObjects().stream()
-                    .anyMatch(obj -> obj instanceof entities.Hazard ||
-                            obj instanceof Penguin);
+            // Engel ne?
+            interfaces.ITerrainObject obstacle = targetCell.getObjects().stream()
+                    .filter(obj -> obj instanceof entities.Hazard || obj instanceof entities.Penguin)
+                    .findFirst()
+                    .orElse(null);
 
-            if (hasObstacle) {
+            if (obstacle != null) {
+                // EĞER ENGEL BİR ÇUKUR İSE (HoleInIce):
+                // "Başka şansı yoksa" buraya adım atar ve düşer.
+                if (obstacle instanceof entities.hazards.HoleInIce) {
+                    System.out.println(name + " stepped into a HoleInIce by accident while using special action!");
+                    
+                    // Haritadan sil ve öldür
+                    terrain.getCell(row, col).removeObject(this);
+                    // Teknik olarak çukura girmiş sayılır
+                    this.row = nextRow; 
+                    this.col = nextCol;
+                    die(terrain); // Oyundan çıkar
+                    return;
+                }
+
+                // EĞER ENGEL DUVAR GİBİ İSE (HeavyIceBlock, SeaLion, Penguin):
+                // Fiziksel olarak oraya adım atılamaz. Olduğu yerde kalır.
                 System.out.println("Cannot move there, tile is occupied. Action wasted.");
                 return;
             }
         }
 
-        // 3. ADIM AT (Kayma değil)
+        // 3. ADIM AT (Engel yoksa)
         System.out.println(" -> " + name + " steps to (" + nextRow + ", " + nextCol + ")");
         terrain.getCell(row, col).removeObject(this);
         this.row = nextRow;

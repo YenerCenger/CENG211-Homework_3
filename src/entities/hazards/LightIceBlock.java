@@ -85,13 +85,20 @@ public class LightIceBlock extends Hazard implements ISlidable {
         Cell targetCell = terrain.getCell(nextRow, nextCol);
 
         // 3. Engel Kontrolü (Başka Buz, Penguen, SeaLion)
+        // DÜZELTME: Tıkalı delikler (PH) engel sayılmaz, üzerinden geçilir!
         boolean hasObstacle = targetCell.getObjects().stream()
-                .anyMatch(obj -> obj instanceof Hazard || obj instanceof Penguin);
+                .anyMatch(obj -> {
+                    if (obj instanceof HoleInIce) {
+                        return !((HoleInIce) obj).isPlugged(); // Tıkalı DEĞİLSE engeldir
+                    }
+                    return obj instanceof Hazard || obj instanceof Penguin;
+                });
 
         if (hasObstacle) {
             // a) Deliğe girerse (HoleInIce) -> TIKA
             ITerrainObject hole = targetCell.getFirstObject(HoleInIce.class);
-            if (hole != null) {
+            // DÜZELTME: Sadece tıkalı değilse düşer!
+            if (hole != null && !((HoleInIce) hole).isPlugged()) {
                 System.out.println("LightIceBlock fell into a hole and plugged it!");
                 terrain.getCell(row, col).removeObject(this); // Eski yerden sil
                 ((HoleInIce) hole).plug(); // Deliği tıka
