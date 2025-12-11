@@ -1,7 +1,5 @@
 package entities.penguins;
 
-import java.util.Scanner;
-
 import core.Cell;
 import core.IcyTerrain;
 import entities.Food;
@@ -17,59 +15,35 @@ public class RoyalPenguin extends Penguin {
     public void performSpecialAction(IcyTerrain terrain) {
         System.out.println(name + " (Royal) uses special action: Move 1 step safely.");
 
-        // --- YÖN SEÇİMİ ---
-        // Not: Normalde AI için rastgele seçmek gerekir ama şimdilik P2 (Siz) için
-        // Scanner kullanıyoruz.
-        // Eğer bu penguen yapay zeka ise rastgele bir yön de seçtirebiliriz.
-        // Basitlik adına burada kullanıcıdan alıyoruz (Sıra sizdeyse).
-
         int dr = 0, dc = 0;
 
-        // Eğer bu penguen "P2" ise (Sizin pengueniniz varsayımıyla) kullanıcıdan
-        // soralım.
-        // Değilse (AI) rastgele güvenli bir yer seçsin.
-
-        if (name.equals("P2")) {
-            Scanner scanner = new Scanner(System.in);
-            System.out.print("Choose 1-step direction (U/D/L/R) --> ");
-            String input = scanner.next().toUpperCase();
+        // ARTIK İSME DEĞİL, BAYRAĞA BAKIYORUZ
+        if (this.isPlayer()) {
+            // Input işlemini IcyTerrain üzerinden yapıyoruz (UI Logic Entity'den çıktı)
+            String input = terrain.askForInput("Choose 1-step direction (U/D/L/R) --> ");
+            
             switch (input) {
-                case "U":
-                    dr = -1;
-                    break;
-                case "D":
-                    dr = 1;
-                    break;
-                case "L":
-                    dc = -1;
-                    break;
-                case "R":
-                    dc = 1;
-                    break;
+                case "U": dr = -1; break;
+                case "D": dr = 1; break;
+                case "L": dc = -1; break;
+                case "R": dc = 1; break;
                 default:
                     System.out.println("Invalid direction, action wasted.");
                     return;
             }
         } else {
             // AI (Rastgele geçerli bir yön seçmeye çalışır)
-            // Basitçe rastgele bir yön deneyelim
             int randomDir = new java.util.Random().nextInt(4);
             switch (randomDir) {
-                case 0:
-                    dr = -1;
-                    break; // UP
-                case 1:
-                    dr = 1;
-                    break; // DOWN
-                case 2:
-                    dc = -1;
-                    break; // LEFT
-                case 3:
-                    dc = 1;
-                    break; // RIGHT
+                case 0: dr = -1; break; // UP
+                case 1: dr = 1; break; // DOWN
+                case 2: dc = -1; break; // LEFT
+                case 3: dc = 1; break; // RIGHT
             }
         }
-
+        
+        // ... (Metodun geri kalanı aynı: Çarpışma kontrolü ve hareket) ...
+        // KODUN DEVAMI AYNI KALACAK, SİLME!
         int nextRow = row + dr;
         int nextCol = col + dc;
 

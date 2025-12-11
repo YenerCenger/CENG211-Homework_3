@@ -25,26 +25,42 @@ public class SeaLion extends Hazard implements ISlidable {
     public boolean onCollision(Penguin penguin, IcyTerrain terrain) {
         System.out.println("BOING! " + penguin.getSymbol() + " bounced off the SeaLion!");
 
-        // 1. YÖN HESAPLAMA (Momentum Transferi)
+        // 1. YÖN HESAPLAMA
         int pRow = penguin.getRow();
         int pCol = penguin.getCol();
 
-        Direction slideDir = null;
-        if (this.row > pRow) slideDir = Direction.DOWN;
-        else if (this.row < pRow) slideDir = Direction.UP;
-        else if (this.col > pCol) slideDir = Direction.RIGHT;
-        else if (this.col < pCol) slideDir = Direction.LEFT;
+        Direction pushDir = null;   // SeaLion'ın gideceği yön (Penguenin geldiği yön)
+        Direction bounceDir = null; // Penguenin sekeceği yön (Ters yön)
 
-        // 2. SeaLion Kaymaya Başlar
-        if (slideDir != null) {
-            System.out.println("   -> SeaLion absorbs momentum and slides " + slideDir);
-            this.slide(slideDir, terrain);
+        if (this.row > pRow) { 
+            pushDir = Direction.DOWN;
+            bounceDir = Direction.UP;
+        } else if (this.row < pRow) { 
+            pushDir = Direction.UP;
+            bounceDir = Direction.DOWN;
+        } else if (this.col > pCol) { 
+            pushDir = Direction.RIGHT;
+            bounceDir = Direction.LEFT;
+        } else if (this.col < pCol) { 
+            pushDir = Direction.LEFT;
+            bounceDir = Direction.RIGHT;
         }
 
-        // Not: Penguen de sekmeli (ters yöne gitmeli) ama ödevde "Penguen durur, SeaLion kayar"
-        // mantığı momentum transferi için yeterli kabul edilebilir.
+        // 2. SeaLion Kaymaya Başlar (Momentum Transferi)
+        if (pushDir != null) {
+            System.out.println("   -> SeaLion absorbs momentum and slides " + pushDir);
+            this.slide(pushDir, terrain);
+        }
 
-        return false; // Penguen durur.
+        // 3. Penguen Geri Seker (Bounce)
+        if (bounceDir != null) {
+            System.out.println("   -> " + penguin.getSymbol() + " bounces back " + bounceDir);
+            penguin.slide(bounceDir, terrain);
+        }
+
+        // return false diyerek penguenin ESKİ yöndeki hareketini bitiriyoruz.
+        // Yeni hareket (bounce) yukarıdaki penguin.slide() ile başladı bile.
+        return false; 
     }
 
     // SeaLion Kayması (Penguen gibi ama yemek yemez)

@@ -28,16 +28,23 @@ public class IcyTerrain {
     private final int ROWS = 10;
     private final int COLS = 10;
     private Random random;
+    private Scanner scanner;
 
     public IcyTerrain() {
         this.map = new ArrayList<>();
         this.penguins = new ArrayList<>();
         this.random = new Random();
+        this.scanner = new Scanner(System.in);
 
         initializeEmptyGrid();
         initializeGameObjects(); // Nesneleri yerleştir
     }
 
+    // RoyalPenguin veya diğer sınıfların input alabilmesi için yardımcı metot:
+    public String askForInput(String message) {
+        System.out.print(message);
+        return scanner.next().toUpperCase();
+    }
     // 10x10'luk boş hücreleri oluşturur
     private void initializeEmptyGrid() {
         for (int i = 0; i < ROWS; i++) {
@@ -226,13 +233,17 @@ public class IcyTerrain {
     }
 
     public void startGame() {
-        Scanner scanner = new Scanner(System.in);
+        // Yerel scanner tanımı SİLİNDİ (this.scanner kullanılacak)
 
-        // Rastgele bir pengueni oyuncuya ata (Ödev P2 örneğini vermiş, biz de P2'yi
-        // seçelim)
-        // Listede P1, P2, P3 var. İndeks 1 -> P2
-        Penguin playerPenguin = penguins.get(1);
-        System.out.println("\nPenguin 2 (P2): " + playerPenguin.getClass().getSimpleName() + " ---> YOUR PENGUIN");
+        // Rastgele bir pengueni oyuncuya ata (İndeks 0, 1 veya 2)
+        int randomIndex = random.nextInt(penguins.size());
+        Penguin playerPenguin = penguins.get(randomIndex);
+        playerPenguin.setPlayer(true); // Pengueni oyuncu olarak işaretle
+        
+        System.out.println("\nPenguin " + playerPenguin.getSymbol() + ": " + playerPenguin.getClass().getSimpleName() + " ---> YOUR PENGUIN");
+
+        System.out.println("The initial icy terrain grid:");
+        printTerrain(); // OYUN BAŞLAMADAN HARİTAYI GÖSTER
 
         int maxTurns = 4; // Her penguenin 4 turu var [cite: 18]
 

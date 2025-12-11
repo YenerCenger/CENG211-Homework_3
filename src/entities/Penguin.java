@@ -11,13 +11,14 @@ import interfaces.ICollidable;
 import interfaces.ISlidable;
 import interfaces.ITerrainObject;
 
-public abstract class Penguin implements ITerrainObject, ISlidable {
+public abstract class Penguin implements ITerrainObject, ISlidable, ICollidable {
     protected int row;
     protected int col;
     protected String name; // P1, P2, P3
     protected int score; // Toplanan yemek puanı
     protected boolean isAlive;
     protected boolean isStunned = false;
+    protected boolean isPlayer = false; // Bu penguen oyuncu mu?
 
     // ÖZEL YETENEK DEĞİŞKENLERİ
     protected boolean canJump = false; // Rockhopper için
@@ -235,6 +236,34 @@ public abstract class Penguin implements ITerrainObject, ISlidable {
         slide(direction, terrain);
     }
 
+    @Override
+    public boolean onCollision(Penguin collidingPenguin, IcyTerrain terrain) {
+        System.out.println(collidingPenguin.getSymbol() + " bumped into " + this.name + ". Momentum transferred!");
+
+        // 1. Yön Hesaplama: Çarpan penguen nereden geliyor?
+        // Bu mantık LightIceBlock.java içindekiyle benzerdir.
+        Direction slideDir = null;
+        if (this.row > collidingPenguin.getRow()) {
+            slideDir = Direction.DOWN; // Çarpan yukarıdan geldi
+        } else if (this.row < collidingPenguin.getRow()) {
+            slideDir = Direction.UP;   // Çarpan aşağıdan geldi
+        } else if (this.col > collidingPenguin.getCol()) {
+            slideDir = Direction.RIGHT; // Çarpan soldan geldi
+        } else if (this.col < collidingPenguin.getCol()) {
+            slideDir = Direction.LEFT;  // Çarpan sağdan geldi
+        }
+
+        // 2. Bu pengueni (duranı) harekete geçir
+        if (slideDir != null) {
+            // Önemli: slide metodunu çağırmadan önce bu durumu konsola yazdıralım
+            System.out.println("   -> " + this.name + " starts sliding " + slideDir);
+            this.slide(slideDir, terrain);
+        }
+
+        // 3. Çarpan penguen durmalı
+        return false;
+    }
+
     // Stun (Sersemletme) Durumu
     public void stun() {
         this.isStunned = true;
@@ -261,13 +290,18 @@ public abstract class Penguin implements ITerrainObject, ISlidable {
 
         for (Direction d : directions) {
             Object result = scanDirection(d, terrain);
-            if (result instanceof Food)
+            if (result instanceof Food) {
                 toFood.add(d);
-            else if (result instanceof Hazard)
-                toHazard.add(d);
-            else if (result.equals("WATER") || result instanceof entities.hazards.HoleInIce) {
-                /* Suya gitme */ } else
+            } else if (result instanceof entities.hazards.HoleInIce) {
+                // Delik bir Hazard olsa da, içine düşmemek için onu "WATER" gibi yasaklı listeye alıyoruz.
+                /* Deliğe gitme, burası boş kalacak */
+            } else if (result instanceof Hazard) {
+                toHazard.add(d); // Artık buraya sadece delik olmayan tehlikeler (LB, SL, HB) girer.
+            } else if (result.equals("WATER")) {
+                /* Suya gitme */
+            } else {
                 toSafeSpace.add(d);
+            }
         }
 
         Random rng = new Random();
@@ -311,5 +345,13 @@ public abstract class Penguin implements ITerrainObject, ISlidable {
                 return "OBSTACLE";
             }
         }
+    }
+
+    public void setPlayer(boolean isPlayer) {
+        this.isPlayer = isPlayer;
+    }
+
+    public boolean isPlayer() {
+        return isPlayer;
     }
 }
