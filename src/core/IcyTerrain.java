@@ -233,7 +233,7 @@ public class IcyTerrain {
     }
 
     public void startGame() {
-        // Yerel scanner tanımı SİLİNDİ (this.scanner kullanılacak)
+        // Yerel scanner tanımı SİLİNDİ (Sınıfın en tepesinde tanımladığımız this.scanner kullanılacak)
 
         // Rastgele bir pengueni oyuncuya ata (İndeks 0, 1 veya 2)
         int randomIndex = random.nextInt(penguins.size());
@@ -245,12 +245,12 @@ public class IcyTerrain {
         System.out.println("The initial icy terrain grid:");
         printTerrain(); // OYUN BAŞLAMADAN HARİTAYI GÖSTER
 
-        int maxTurns = 4; // Her penguenin 4 turu var [cite: 18]
+        int maxTurns = 4; // Her penguenin 4 turu var
 
         for (int turn = 1; turn <= maxTurns; turn++) {
             System.out.println("\n*** Turn " + turn);
 
-            // Sırayla her penguen oynar (P1 -> P2 -> P3) [cite: 101]
+            // Sırayla her penguen oynar (P1 -> P2 -> P3)
             for (Penguin p : penguins) {
                 if (!p.isAlive())
                     continue; // Ölüler oynayamaz
@@ -264,15 +264,15 @@ public class IcyTerrain {
                 System.out.println("\n" + p.getSymbol() + "'s turn:");
 
                 // OYUNCU MU, AI MI?
-                boolean isPlayer = (p == playerPenguin);
+                // DİKKAT: Artık isimle değil, isPlayer() ile kontrol ediyoruz
+                boolean isPlayer = p.isPlayer(); 
 
                 // 1. ÖZEL GÜÇ KULLANIMI
                 if (isPlayer) {
                     // DOĞRU GİRİŞ YAPILANA KADAR SOR (WHILE DÖNGÜSÜ)
                     boolean validInput = false;
                     while (!validInput) {
-                        System.out.print("Will " + p.getSymbol() + " use its special action? (Y/N) --> ");
-                        String input = scanner.next().toUpperCase();
+                        String input = askForInput("Will " + p.getSymbol() + " use its special action? (Y/N) --> ");
                         if (input.equals("Y")) {
                             p.performSpecialAction(this);
                             validInput = true;
@@ -283,8 +283,49 @@ public class IcyTerrain {
                         }
                     }
                 } else {
-                    // AI: %30 şansla kullan [cite: 96]
-                    if (random.nextInt(100) < 30) {
+                    // --- AI MANTIĞI (DÜZELTİLMİŞ HALİ) ---
+                    boolean shouldUseSpecial = false;
+
+                    // Kural: Rockhopper tehlikeye gidiyorsa OTOMATİK kullanır
+                    if (p instanceof entities.penguins.RockhopperPenguin) {
+                        // 1. Önce AI'nın nereye gitmek istediğine bakalım
+                        enums.Direction intendedDir = p.chooseDirectionAI(this);
+                        
+                        // 2. O yönde ne var?
+                        int checkR = p.getRow();
+                        int checkC = p.getCol();
+                        switch (intendedDir) {
+                            case UP: checkR--; break;
+                            case DOWN: checkR++; break;
+                            case LEFT: checkC--; break;
+                            case RIGHT: checkC++; break;
+                        }
+
+                        // 3. Eğer o yönde Tehlike (Hazard) varsa yeteneği aç
+                        if (isValidPosition(checkR, checkC)) {
+                            Cell cell = getCell(checkR, checkC);
+                            boolean hasHazard = cell.getObjects().stream().anyMatch(o -> o instanceof entities.Hazard);
+                            boolean isHole = cell.getObjects().stream().anyMatch(o -> o instanceof entities.hazards.HoleInIce);
+                            
+                            // Delik değilse ve tehlikeyse zıpla
+                            if (hasHazard && !isHole) {
+                                shouldUseSpecial = true;
+                            }
+                        }
+                        
+                        // Eğer tehlike yoksa yine de %30 şansını deneyebilir
+                        if (!shouldUseSpecial && random.nextInt(100) < 30) {
+                            shouldUseSpecial = true;
+                        }
+
+                    } else {
+                        // Diğer penguenler için standart %30 kuralı
+                        if (random.nextInt(100) < 30) {
+                            shouldUseSpecial = true;
+                        }
+                    }
+
+                    if (shouldUseSpecial) {
                         System.out.println(p.getSymbol() + " chooses to USE its special action.");
                         p.performSpecialAction(this);
                     } else {
@@ -293,28 +334,18 @@ public class IcyTerrain {
                 }
 
                 // 2. YÖN SEÇİMİ
-                Direction moveDir = null;
+                enums.Direction moveDir = null;
                 if (isPlayer) {
                     // DOĞRU GİRİŞ YAPILANA KADAR SOR (WHILE DÖNGÜSÜ)
                     while (moveDir == null) {
-                        System.out.print("Which direction will " + p.getSymbol() + " move? (U/D/L/R) --> ");
-                        String dStr = scanner.next().toUpperCase();
+                        String dStr = askForInput("Which direction will " + p.getSymbol() + " move? (U/D/L/R) --> ");
                         switch (dStr) {
-                            case "U":
-                                moveDir = Direction.UP;
-                                break;
-                            case "D":
-                                moveDir = Direction.DOWN;
-                                break;
-                            case "L":
-                                moveDir = Direction.LEFT;
-                                break;
-                            case "R":
-                                moveDir = Direction.RIGHT;
-                                break;
+                            case "U": moveDir = enums.Direction.UP; break;
+                            case "D": moveDir = enums.Direction.DOWN; break;
+                            case "L": moveDir = enums.Direction.LEFT; break;
+                            case "R": moveDir = enums.Direction.RIGHT; break;
                             default:
                                 System.out.println("Invalid input! Please enter U, D, L, or R.");
-                                // moveDir hala null olduğu için döngü başa döner
                         }
                     }
                 } else {

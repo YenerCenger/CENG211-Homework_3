@@ -32,9 +32,36 @@ public class RoyalPenguin extends Penguin {
                     return;
             }
         } else {
-            // AI (Rastgele geçerli bir yön seçmeye çalışır)
-            int randomDir = new java.util.Random().nextInt(4);
-            switch (randomDir) {
+            // AI: Sadece GÜVENLİ (Su veya Tehlike olmayan) kareleri bul [cite: 98]
+            java.util.List<Integer> safeDirections = new java.util.ArrayList<>();
+            int[][] deltas = { {-1, 0}, {1, 0}, {0, -1}, {0, 1} }; // UP, DOWN, LEFT, RIGHT
+
+            for (int i = 0; i < 4; i++) {
+                int tr = row + deltas[i][0];
+                int tc = col + deltas[i][1];
+
+                // 1. Suya düşüyor mu?
+                if (!terrain.isValidPosition(tr, tc)) continue;
+
+                // 2. Tehlike veya başka penguen var mı?
+                Cell target = terrain.getCell(tr, tc);
+                boolean isSafe = target.isEmpty() || target.getObjects().stream().noneMatch(o -> o instanceof entities.Hazard || o instanceof Penguin);
+                
+                if (isSafe) {
+                    safeDirections.add(i);
+                }
+            }
+
+            int selectedDir;
+            if (!safeDirections.isEmpty()) {
+                // Güvenli yer varsa oradan seç
+                selectedDir = safeDirections.get(new java.util.Random().nextInt(safeDirections.size()));
+            } else {
+                // Mecbursa rastgele git (Fallback)
+                selectedDir = new java.util.Random().nextInt(4);
+            }
+
+            switch (selectedDir) {
                 case 0: dr = -1; break; // UP
                 case 1: dr = 1; break; // DOWN
                 case 2: dc = -1; break; // LEFT
