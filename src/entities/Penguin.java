@@ -19,6 +19,8 @@ public abstract class Penguin implements ITerrainObject, ISlidable, ICollidable 
     protected boolean isAlive;
     protected boolean isStunned = false;
     protected boolean isPlayer = false; // Bu penguen oyuncu mu?
+    protected boolean abilityUsed = false;
+    
 
     // ÖZEL YETENEK DEĞİŞKENLERİ
     protected boolean canJump = false; // Rockhopper için
@@ -179,30 +181,44 @@ public abstract class Penguin implements ITerrainObject, ISlidable, ICollidable 
                         break;
                 }
 
-                // Zıplanacak yer güvenli mi?
-                if (terrain.isValidPosition(jumpRow, jumpCol) && terrain.getCell(jumpRow, jumpCol).isEmpty()) {
+                // Zıplanacak yer güvenli mi? (Yemek varsa engel sayılmaz!)
+                Cell jumpTargetCell = null;
+                boolean isJumpTargetSafe = false;
+
+                if (terrain.isValidPosition(jumpRow, jumpCol)) {
+                    jumpTargetCell = terrain.getCell(jumpRow, jumpCol);
+                    // Hedefte Tehlike veya Penguen var mı? (Food engel değildir)
+                    boolean targetHasObstacle = jumpTargetCell.getObjects().stream()
+                            .anyMatch(obj -> obj instanceof Hazard || obj instanceof Penguin);
+                    
+                    if (!targetHasObstacle) {
+                        isJumpTargetSafe = true;
+                    }
+                }
+
+                if (isJumpTargetSafe) {
                     System.out.println("   -> JUMP SUCCESSFUL! Landed on (" + jumpRow + ", " + jumpCol + ")");
 
                     terrain.getCell(row, col).removeObject(this);
                     this.row = jumpRow;
                     this.col = jumpCol;
-                    terrain.getCell(row, col).addObject(this);
+                    jumpTargetCell.addObject(this);
 
                     this.canJump = false; // Yetenek kullanıldı
 
                     // İndiği yerde yemek var mı?
-                    Food f = terrain.getCell(row, col).getFirstObject(Food.class);
+                    Food f = jumpTargetCell.getFirstObject(Food.class);
                     if (f != null)
                         eat(f, terrain);
 
                     slide(direction, terrain); // Devam et
                     return;
                 } else {
-                    System.out.println("   -> Jump FAILED! Target square not empty or water.");
+                    System.out.println("   -> Jump FAILED! Target square not safe (occupied or water).");
                     this.canJump = false; // Yetenek boşa gitti
+                    // return etmiyoruz, normal çarpışma mantığına düşsün.
                 }
             }
-
             // *** NORMAL ÇARPIŞMA ***
             ITerrainObject obstacle = targetCell.getObjects().stream()
                     .filter(o -> o instanceof ICollidable)
@@ -353,5 +369,13 @@ public abstract class Penguin implements ITerrainObject, ISlidable, ICollidable 
 
     public boolean isPlayer() {
         return isPlayer;
+    }
+
+    public boolean isAbilityUsed() {
+        return abilityUsed;
+    }
+
+    public void setAbilityUsed(boolean abilityUsed) {
+        this.abilityUsed = abilityUsed;
     }
 }

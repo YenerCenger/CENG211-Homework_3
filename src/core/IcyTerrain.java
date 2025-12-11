@@ -126,8 +126,11 @@ public class IcyTerrain {
                 // tercih edelim)
                 boolean hasHazard = cell.getObjects().stream().anyMatch(o -> o instanceof Hazard);
                 boolean hasFood = cell.getObjects().stream().anyMatch(o -> o instanceof Food);
+                // EKLEME: Penguen kontrolü de yapıyoruz
+                boolean hasPenguin = cell.getObjects().stream().anyMatch(o -> o instanceof Penguin);
 
-                if (!hasHazard && !hasFood) {
+                // Eğer karede Tehlike YOKSA, Yemek YOKSA VE Penguen YOKSA yerleştir
+                if (!hasHazard && !hasFood && !hasPenguin) {
                     addObjectToGrid(food, r, c);
                     placed = true;
                 }
@@ -269,18 +272,24 @@ public class IcyTerrain {
 
                 // 1. ÖZEL GÜÇ KULLANIMI
                 if (isPlayer) {
-                    // DOĞRU GİRİŞ YAPILANA KADAR SOR (WHILE DÖNGÜSÜ)
-                    boolean validInput = false;
-                    while (!validInput) {
-                        String input = askForInput("Will " + p.getSymbol() + " use its special action? (Y/N) --> ");
-                        if (input.equals("Y")) {
-                            p.performSpecialAction(this);
-                            validInput = true;
-                        } else if (input.equals("N")) {
-                            validInput = true;
-                        } else {
-                            System.out.println("Invalid input! Please enter Y or N.");
+                    // KONTROL: Daha önce kullandı mı?
+                    if (!p.isAbilityUsed()) {
+                        boolean validInput = false;
+                        while (!validInput) {
+                            String input = askForInput("Will " + p.getSymbol() + " use its special action? (Y/N) --> ");
+                            
+                            if (input.equals("Y")) {
+                                p.performSpecialAction(this);
+                                p.setAbilityUsed(true); // <--- ÖNEMLİ: Kullandı olarak işaretle
+                                validInput = true;
+                            } else if (input.equals("N")) {
+                                validInput = true;
+                            } else {
+                                System.out.println("Invalid input! Please enter Y or N.");
+                            }
                         }
+                    } else {
+                        System.out.println(p.getSymbol() + " has already used its special action!");
                     }
                 } else {
                     // --- AI MANTIĞI (DÜZELTİLMİŞ HALİ) ---
@@ -328,9 +337,17 @@ public class IcyTerrain {
                         }
                     }
 
-                    if (shouldUseSpecial) {
+                // KONTROL: Kullanılmadıysa VE AI kullanmak istiyorsa
+                    if (!p.isAbilityUsed() && shouldUseSpecial) {
                         System.out.println(p.getSymbol() + " chooses to USE its special action.");
                         p.performSpecialAction(this);
+                        p.setAbilityUsed(true); // <--- ÖNEMLİ: Kullandı olarak işaretle
+
+                        // *** Royal Penguin Düzeltmesi (Önceki sorunuzdaki düzeltme) ***
+                        if (p instanceof entities.penguins.RoyalPenguin) {
+                            aiDecidedDir = p.chooseDirectionAI(this);
+                        }
+
                     } else {
                         System.out.println(p.getSymbol() + " does NOT use its special action.");
                     }
