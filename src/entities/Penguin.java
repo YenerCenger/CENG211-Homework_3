@@ -378,4 +378,9 @@ public abstract class Penguin implements ITerrainObject, ISlidable, ICollidable 
     public void setAbilityUsed(boolean abilityUsed) {
         this.abilityUsed = abilityUsed;
     }
+
+    public void resetTurnState() {
+    this.stopAtStep = -1; // Sayacı sıfırla
+    // (İleride başka tur bazlı değişken olursa buraya eklenir)
+    }
 }

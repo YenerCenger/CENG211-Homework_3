@@ -378,6 +378,8 @@ public class IcyTerrain {
                 // 3. HAREKETİ BAŞLAT
                 p.slide(moveDir, this);
 
+                p.resetTurnState();    
+
                 // Her hamleden sonra haritayı göster
                 printTerrain();
             }
